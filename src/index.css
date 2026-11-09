@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
+@import "tailwindcss";
+
+:root {
+  --theme-bg: #f8fafc; /* Slate 50 - Very light gray */
+  --theme-text: #0f172a; /* Slate 900 - Deep slate for text */
+  --theme-accent: #3b82f6; /* Blue 500 - Bright primary accent */
+  --theme-secondary: #f59e0b; /* Amber 500 - For highlights */
+  --theme-card: #ffffff; /* White cards */
+  --theme-muted: #f1f5f9; /* Slate 100 - For subtle backgrounds */
+  --theme-border: #e2e8f0; /* Slate 200 */
+  --theme-border-strong: #cbd5e1; /* Slate 300 */
+  --theme-text-muted: #64748b; /* Slate 500 */
+  --theme-heading: "Inter", sans-serif;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-theme-bg: var(--theme-bg);
+  --color-theme-text: var(--theme-text);
+  --color-theme-accent: var(--theme-accent);
+  --color-theme-secondary: var(--theme-secondary);
+  --color-theme-card: var(--theme-card);
+  --color-theme-muted: var(--theme-muted);
+  --color-theme-border: var(--theme-border);
+  --color-theme-border-strong: var(--theme-border-strong);
+  --color-theme-text-muted: var(--theme-text-muted);
+  --font-theme-heading: var(--theme-heading);
+}
+
+body {
+  @apply antialiased overflow-x-hidden;
+}
+
+html {
+  @apply overflow-x-hidden;
+}
+
+@keyframes fall {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}

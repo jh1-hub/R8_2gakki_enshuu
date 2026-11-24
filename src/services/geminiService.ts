@@ -11,18 +11,42 @@ export interface Question {
   patternIndex?: number;
 }
 
+const BINARY_BIT_WIDTH = 8;
+
+function formatNumberForBase(value: number, base: number): string {
+  if (base === 2) {
+    return value.toString(2).padStart(BINARY_BIT_WIDTH, '0');
+  }
+  return value.toString(base).toUpperCase();
+}
+
+function formatBasePrompt(fromBase: number, toBase: number, value: number): string {
+  const formattedInput = formatNumberForBase(value, fromBase);
+  const fromLabel =
+    fromBase === 2
+      ? `${BINARY_BIT_WIDTH}ビットの2進数「${formattedInput}」`
+      : fromBase === 16
+        ? `16進数の「${formattedInput}」(0x${formattedInput})`
+        : `10進数の「${formattedInput}」`;
+  const toLabel = toBase === 2 ? `${BINARY_BIT_WIDTH}ビットの2進数` : `${toBase}進数`;
+  return `${fromLabel}を${toLabel}に変換せよ。`;
+}
+
 /**
  * Generates a random base conversion problem.
  */
 export function generateCalculationQuestion(optionCount: number = 5): Question {
-  const value = Math.floor(Math.random() * 255) + 1; // 1-255 range for a bit more challenge
   const bases = [2, 10, 16];
   const fromBase = bases[Math.floor(Math.random() * bases.length)];
   const toBase = bases.filter(b => b !== fromBase)[Math.floor(Math.random() * (bases.length - 1))];
+  const involvesHex = fromBase === 16 || toBase === 16;
+  const minVal = involvesHex ? 16 : 1;
+  const maxVal = 255;
+  const value = Math.floor(Math.random() * (maxVal - minVal + 1)) + minVal;
 
-  const questionText = `${fromBase}進数の「${value.toString(fromBase).toUpperCase()}」を${toBase}進数に変換せよ。`;
-  const correctAnswer = value.toString(toBase).toUpperCase();
-  const distractors = generateBaseDistractors(value, toBase, optionCount - 1);
+  const questionText = formatBasePrompt(fromBase, toBase, value);
+  const correctAnswer = formatNumberForBase(value, toBase);
+  const distractors = generateBaseDistractors(value, toBase, optionCount - 1, minVal, maxVal);
   const options = [correctAnswer, ...distractors].sort(() => 0.5 - Math.random());
 
   return {
@@ -36,17 +60,62 @@ export function generateCalculationQuestion(optionCount: number = 5): Question {
 }
 
 /**
- * Generates a distractor for base conversion by adding/subtracting small values
- * or making common mistakes (like swapping bases).
+ * Generates distractors for base conversion by applying small offsets or 1-bit flips
+ * within the valid range [minVal, maxVal].
  */
-function generateBaseDistractors(correctValue: number, base: number, count: number): string[] {
+function generateBaseDistractors(
+  correctValue: number,
+  base: number,
+  count: number,
+  minVal: number = 1,
+  maxVal: number = 255
+): string[] {
+  const correctStr = formatNumberForBase(correctValue, base);
   const distractors = new Set<string>();
-  while (distractors.size < count) {
-    const offset = Math.floor(Math.random() * 10) - 5;
-    if (offset === 0) continue;
-    const val = Math.max(0, correctValue + offset);
-    distractors.add(val.toString(base).toUpperCase());
+  const candidateOffsets = [-8, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 8];
+
+  // Include 1-bit flip candidates for binary/hex problems
+  const bitFlipCandidates: number[] = [];
+  for (let bit = 0; bit < BINARY_BIT_WIDTH; bit++) {
+    const flipped = correctValue ^ (1 << bit);
+    if (flipped !== correctValue && flipped >= minVal && flipped <= maxVal) {
+      bitFlipCandidates.push(flipped);
+    }
   }
+
+  const pool = new Set<number>();
+  for (const offset of candidateOffsets) {
+    const val = correctValue + offset;
+    if (val !== correctValue && val >= minVal && val <= maxVal) {
+      pool.add(val);
+    }
+  }
+  for (const flipped of bitFlipCandidates) {
+    pool.add(flipped);
+  }
+
+  const shuffledPool = Array.from(pool).sort(() => 0.5 - Math.random());
+  for (const val of shuffledPool) {
+    if (distractors.size >= count) break;
+    const str = formatNumberForBase(val, base);
+    if (str !== correctStr) {
+      distractors.add(str);
+    }
+  }
+
+  // Fallback widening loop guaranteed to terminate
+  let spread = 12;
+  while (distractors.size < count) {
+    const val = Math.floor(Math.random() * (Math.min(maxVal, correctValue + spread) - Math.max(minVal, correctValue - spread) + 1)) + Math.max(minVal, correctValue - spread);
+    if (val !== correctValue) {
+      const str = formatNumberForBase(val, base);
+      if (str !== correctStr) {
+        distractors.add(str);
+      }
+    }
+    spread = Math.min(maxVal, spread + 10);
+  }
+
   return Array.from(distractors);
 }
 
@@ -83,7 +152,6 @@ export async function generateQuestion(
   if (term === '2進数' || term === '16進数' || term === '基数変換' || term === '10進数') {
     const isDynamic = Math.random() < 0.7; // 70% chance for a dynamic math problem
     if (isDynamic) {
-      const value = Math.floor(Math.random() * 63) + 1; // 1-63 range for simplicity
       const fromBase = [2, 10, 16][Math.floor(Math.random() * 3)];
       let toBase = [2, 10, 16].filter(b => b !== fromBase)[Math.floor(Math.random() * 2)];
       
@@ -93,9 +161,15 @@ export async function generateQuestion(
       if (term === '10進数') toBase = 10;
 
       if (fromBase !== toBase) {
-        const questionText = `${fromBase}進数の「${value.toString(fromBase).toUpperCase()}」を${toBase}進数に変換せよ。`;
-        const correctAnswer = value.toString(toBase).toUpperCase();
-        const distractors = generateBaseDistractors(value, toBase, optionCount - 1);
+        const involvesHex = fromBase === 16 || toBase === 16;
+        const involvesDec = fromBase === 10 || toBase === 10;
+        const minVal = involvesHex ? 16 : 1;
+        const maxVal = involvesDec ? 63 : 255;
+        const value = Math.floor(Math.random() * (maxVal - minVal + 1)) + minVal;
+
+        const questionText = formatBasePrompt(fromBase, toBase, value);
+        const correctAnswer = formatNumberForBase(value, toBase);
+        const distractors = generateBaseDistractors(value, toBase, optionCount - 1, minVal, maxVal);
         const options = [correctAnswer, ...distractors].sort(() => 0.5 - Math.random());
 
         return {

@@ -58,23 +58,27 @@ export const useQuiz = (
       const nextMaxCombo = Math.max(maxCombo, nextCombo);
       const nextCorrectCount = speedStarCorrectCount + (isCorrect ? 1 : 0);
 
+      const nextTimeLeft = isCorrect
+        ? Math.min(30, timeLeft + 2)
+        : Math.max(0, timeLeft - 5);
+
       if (isCorrect) {
         setScore(prev => prev + 200);
         setSpeedStarCorrectCount(nextCorrectCount);
         setCombo(nextCombo);
         setMaxCombo(nextMaxCombo);
-        setTimeLeft(prev => Math.min(30, prev + 2));
+        setTimeLeft(nextTimeLeft);
         setFeedback('CORRECT');
       } else {
         setCombo(0);
-        setTimeLeft(prev => Math.max(0, prev - 5));
+        setTimeLeft(nextTimeLeft);
         setFeedback('WRONG');
       }
       
       setTimeout(() => {
         setFeedback(null);
         setUserAnswer(null);
-        if (currentQuestionIndex < questions.length - 1 && timeLeft > 0) {
+        if (currentQuestionIndex < questions.length - 1 && nextTimeLeft > 0) {
           setCurrentQuestionIndex(prev => prev + 1);
         } else {
           setSpeedStarMaxCombo(prev => Math.max(prev, nextMaxCombo));
